@@ -582,33 +582,41 @@ class _HomeWidgetState extends State<HomeWidget> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Left: variations if present, else page dots on mobile
-          if (currentDemo.hasVariations)
-            VariationSelector(
-              variations: currentDemo.variations,
-              selectedIndex: currentVariationIndex,
-              onChanged: (i) => _onVariationChanged(_currentPage, i),
-              colorScheme: colorScheme,
-            )
-          else if (!isDesktop)
-            SmoothPageIndicator(
-              controller: _pageController,
-              count: _demos.length,
-              effect: ExpandingDotsEffect(
-                activeDotColor: colorScheme.primary,
-                dotColor: colorScheme.outlineVariant,
-                dotHeight: 7,
-                dotWidth: 7,
-                expansionFactor: 3,
-              ),
-              onDotClicked: (index) => _pageController.animateToPage(
-                index,
-                duration: _pageTransitionDuration,
-                curve: _curve,
-              ),
-            )
-          else
-            const SizedBox.shrink(),
+          // Left: variations if present, else page dots on mobile.
+          // Wrapped so a wide selector scrolls instead of overflowing on
+          // narrow screens, while still hugging its content when it fits.
+          Flexible(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: currentDemo.hasVariations
+                  ? VariationSelector(
+                      variations: currentDemo.variations,
+                      selectedIndex: currentVariationIndex,
+                      onChanged: (i) => _onVariationChanged(_currentPage, i),
+                      colorScheme: colorScheme,
+                    )
+                  : (!isDesktop
+                      ? SmoothPageIndicator(
+                          controller: _pageController,
+                          count: _demos.length,
+                          effect: ExpandingDotsEffect(
+                            activeDotColor: colorScheme.primary,
+                            dotColor: colorScheme.outlineVariant,
+                            dotHeight: 7,
+                            dotWidth: 7,
+                            expansionFactor: 3,
+                          ),
+                          onDotClicked: (index) =>
+                              _pageController.animateToPage(
+                            index,
+                            duration: _pageTransitionDuration,
+                            curve: _curve,
+                          ),
+                        )
+                      : const SizedBox.shrink()),
+            ),
+          ),
+          const SizedBox(width: 12),
           // Right: interaction toggle (Gravity only) + play controls
           Row(
             mainAxisSize: MainAxisSize.min,
