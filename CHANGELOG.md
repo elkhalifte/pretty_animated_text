@@ -1,3 +1,8 @@
+## 3.1.0
+
+* Added Swift Package Manager (SPM) support for iOS and macOS, alongside the existing CocoaPods podspecs.
+* Declared macOS as a supported plugin platform.
+
 ## 3.0.1
 
 - Improve README rendering on pub.dev.
