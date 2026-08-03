@@ -98,6 +98,16 @@ class _HomeWidgetState extends State<HomeWidget> {
             enableInteraction: _interactionEnabled),
       ),
       AnimationDemoItem(
+        title: 'Glitch',
+        buildLetter: (onCreated, _, ta, dur) => GlitchTextDemo(
+            duration: dur, textAlign: ta, onControllerCreated: onCreated),
+        buildWord: (onCreated, _, ta, dur) => GlitchTextDemo(
+            type: AnimationType.word,
+            duration: dur,
+            textAlign: ta,
+            onControllerCreated: onCreated),
+      ),
+      AnimationDemoItem(
         title: 'Scramble',
         buildLetter: (onCreated, _, ta, dur) => ScrambleTextDemo(
             duration: dur, textAlign: ta, onControllerCreated: onCreated),

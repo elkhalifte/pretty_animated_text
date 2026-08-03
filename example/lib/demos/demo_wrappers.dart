@@ -193,6 +193,30 @@ class ScrambleTextDemo extends StatelessWidget {
       );
 }
 
+class GlitchTextDemo extends StatelessWidget {
+  final AnimationType type;
+  final Duration duration;
+  final TextAlign textAlign;
+  final void Function(AnimatedTextController)? onControllerCreated;
+
+  const GlitchTextDemo({
+    super.key,
+    this.type = AnimationType.letter,
+    this.duration = letterAnimationDuration,
+    this.textAlign = TextAlign.start,
+    this.onControllerCreated,
+  });
+
+  @override
+  Widget build(BuildContext context) => GlitchText(
+        text: demoText,
+        style: demoTextStyle,
+        textAlign: textAlign,
+        config: _buildConfig(runtimeType, type, duration, onControllerCreated),
+        onControllerCreated: onControllerCreated,
+      );
+}
+
 class GravityTextDemo extends StatelessWidget {
   final AnimationType type;
   final Duration duration;

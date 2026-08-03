@@ -1,3 +1,7 @@
+## 3.2.0
+
+* Added `GlitchText` - a slice/tear glitch effect. All characters stay visible and readable while a random, rotating subset glitches by tearing into horizontal slices that shear sideways: at most one word at a time in word mode, or a random group of 2-3 letters in letter mode, covering every segment once per forward pass and reshuffling on each repeat. Because the slices are disjoint bands, each glyph is drawn exactly once (no ghosting). Customizable via `GlitchStyle` (`shadows` toggles a chromatic tinted tear vs a monochrome one, plus the tint colors); the caller's `TextStyle` is preserved and the glitch loops continuously when `config.repeat` is enabled.
+
 ## 3.1.0
 
 * Added Swift Package Manager (SPM) support for iOS and macOS, alongside the existing CocoaPods podspecs.
