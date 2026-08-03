@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../core/constants.dart';
 
 class Header extends StatelessWidget {
   final ColorScheme colorScheme;
@@ -111,7 +112,7 @@ class _SocialButtonState extends State<_SocialButton> {
             height: 44,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: surfaceColor(colorScheme.brightness),
               shape: BoxShape.circle,
               border: Border.all(
                 color: _hovered

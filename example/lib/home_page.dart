@@ -13,7 +13,8 @@ import 'widgets/text_align_toggle.dart';
 import 'widgets/variation_selector.dart';
 
 class HomeWidget extends StatefulWidget {
-  const HomeWidget({super.key});
+  final VoidCallback onToggleTheme;
+  const HomeWidget({super.key, required this.onToggleTheme});
 
   @override
   State<HomeWidget> createState() => _HomeWidgetState();
@@ -310,7 +311,7 @@ class _HomeWidgetState extends State<HomeWidget> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surfaceColor(colorScheme.brightness),
         borderRadius: BorderRadius.circular(28),
         boxShadow: kCardShadows,
       ),
@@ -435,7 +436,7 @@ class _HomeWidgetState extends State<HomeWidget> {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surfaceColor(colorScheme.brightness),
         borderRadius: BorderRadius.circular(28),
         boxShadow: kCardShadows,
       ),
@@ -484,6 +485,11 @@ class _HomeWidgetState extends State<HomeWidget> {
           ),
           const SizedBox(width: 10),
           _statusChip(colorScheme),
+          const Spacer(),
+          _ThemeToggle(
+            colorScheme: colorScheme,
+            onToggle: widget.onToggleTheme,
+          ),
         ],
       ),
     );
@@ -527,12 +533,12 @@ class _HomeWidgetState extends State<HomeWidget> {
   // Canvas: animation PageView with gradient background
   Widget _buildCanvas() {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [kCanvasGradientA, kCanvasGradientB, kCanvasGradientA],
-          stops: [0.0, 0.5, 1.0],
+          colors: canvasGradient(Theme.of(context).brightness),
+          stops: const [0.0, 0.5, 1.0],
         ),
       ),
       child: PageView.builder(
@@ -754,7 +760,7 @@ class _HomeWidgetState extends State<HomeWidget> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surfaceColor(colorScheme.brightness),
         borderRadius: BorderRadius.circular(100),
         boxShadow: kControlPillShadows,
       ),
@@ -789,6 +795,50 @@ class _HomeWidgetState extends State<HomeWidget> {
             },
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Light/dark theme toggle shown at the far right of the card header.
+class _ThemeToggle extends StatelessWidget {
+  final ColorScheme colorScheme;
+  final VoidCallback onToggle;
+
+  const _ThemeToggle({required this.colorScheme, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = colorScheme.brightness == Brightness.dark;
+    return Tooltip(
+      message: isDark ? 'Switch to light mode' : 'Switch to dark mode',
+      child: InkWell(
+        onTap: onToggle,
+        borderRadius: BorderRadius.circular(100),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+            ),
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            transitionBuilder: (child, animation) => RotationTransition(
+              turns: Tween<double>(begin: 0.6, end: 1.0).animate(animation),
+              child: FadeTransition(opacity: animation, child: child),
+            ),
+            child: Icon(
+              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              key: ValueKey(isDark),
+              size: 20,
+              color: colorScheme.primary,
+            ),
+          ),
+        ),
       ),
     );
   }

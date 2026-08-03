@@ -17,52 +17,74 @@ Future<void> main() async {
   runApp(const PrettyAnimatedTextApp());
 }
 
-class PrettyAnimatedTextApp extends StatelessWidget {
+class PrettyAnimatedTextApp extends StatefulWidget {
   const PrettyAnimatedTextApp({super.key});
+
+  @override
+  State<PrettyAnimatedTextApp> createState() => _PrettyAnimatedTextAppState();
+}
+
+class _PrettyAnimatedTextAppState extends State<PrettyAnimatedTextApp> {
+  ThemeMode _themeMode = ThemeMode.light;
+
+  void _toggleTheme() {
+    setState(() {
+      _themeMode =
+          _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    });
+  }
+
+  ThemeData _theme(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    return ThemeData(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: kBrandIndigo,
+        brightness: brightness,
+        surface: isDark ? const Color(0xFF1A1830) : const Color(0xFFF8FAFC),
+      ),
+      textTheme: GoogleFonts.plusJakartaSansTextTheme(
+        isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
+      ),
+      scaffoldBackgroundColor: Colors.transparent,
+      useMaterial3: true,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Pretty Animated Text',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: kBrandIndigo,
-          surface: const Color(0xFFF8FAFC),
-        ),
-        textTheme: GoogleFonts.plusJakartaSansTextTheme(),
-        scaffoldBackgroundColor: Colors.transparent,
-        useMaterial3: true,
-      ),
-      home: const _GradientScaffold(),
+      theme: _theme(Brightness.light),
+      darkTheme: _theme(Brightness.dark),
+      themeMode: _themeMode,
+      home: _GradientScaffold(onToggleTheme: _toggleTheme),
     );
   }
 }
 
 class _GradientScaffold extends StatelessWidget {
-  const _GradientScaffold();
+  final VoidCallback onToggleTheme;
+  const _GradientScaffold({required this.onToggleTheme});
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return Stack(
       children: [
         Positioned.fill(
           child: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  kBgGradientTop,
-                  kBgGradientBottom,
-                  kBgGradientTop,
-                ],
-                stops: [0.0, 0.5, 1.0],
+                colors: backgroundGradient(brightness),
+                stops: const [0.0, 0.5, 1.0],
               ),
             ),
           ),
         ),
-        const HomeWidget(),
+        HomeWidget(onToggleTheme: onToggleTheme),
       ],
     );
   }

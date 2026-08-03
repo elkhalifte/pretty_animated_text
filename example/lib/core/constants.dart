@@ -7,10 +7,15 @@ const demoText = 'Bring motion to your text. Keep your UI elegant!';
 final demoTextStyle = GoogleFonts.comicNeue(
   fontSize: 52,
   fontWeight: FontWeight.w900,
-  color: const Color(0xFF1E293B),
+  color: kDemoTextColorLight,
   height: 1.2,
   letterSpacing: -0.5,
 );
+
+/// Demo text style with a color that adapts to the current theme brightness.
+TextStyle demoTextStyleOf(BuildContext context) => demoTextStyle.copyWith(
+      color: demoTextColor(Theme.of(context).brightness),
+    );
 
 // Letter animation durations (slow / medium / fast)
 const letterDurationSlow = Duration(milliseconds: 600);
@@ -101,6 +106,39 @@ const kPlayButtonPressedShadows = [
     offset: Offset(0, 2),
   ),
 ];
+
+// ── Dark theme palette ───────────────────────────────────────────────────
+const kBgGradientTopDark = Color(0xFF1A1730);
+const kBgGradientBottomDark = Color(0xFF100E1C);
+
+const kCanvasGradientADark = Color(0xFF17162A);
+const kCanvasGradientBDark = Color(0xFF100F1C);
+
+const kSurfaceDark = Color(0xFF201E33);
+
+const kDemoTextColorLight = Color(0xFF1E293B);
+const kDemoTextColorDark = Color(0xFFF1F5F9);
+
+// ── Theme-aware helpers ──────────────────────────────────────────────────
+/// Card / pill surface color for the given [brightness].
+Color surfaceColor(Brightness brightness) =>
+    brightness == Brightness.dark ? kSurfaceDark : Colors.white;
+
+/// Page background gradient stops for the given [brightness].
+List<Color> backgroundGradient(Brightness brightness) =>
+    brightness == Brightness.dark
+        ? const [kBgGradientTopDark, kBgGradientBottomDark, kBgGradientTopDark]
+        : const [kBgGradientTop, kBgGradientBottom, kBgGradientTop];
+
+/// Animation canvas gradient stops for the given [brightness].
+List<Color> canvasGradient(Brightness brightness) =>
+    brightness == Brightness.dark
+        ? const [kCanvasGradientADark, kCanvasGradientBDark, kCanvasGradientADark]
+        : const [kCanvasGradientA, kCanvasGradientB, kCanvasGradientA];
+
+/// Demo text color for the given [brightness].
+Color demoTextColor(Brightness brightness) =>
+    brightness == Brightness.dark ? kDemoTextColorDark : kDemoTextColorLight;
 
 // Navigation icons
 const kDemoIcons = <String, IconData>{
