@@ -67,6 +67,7 @@ class Header extends StatelessWidget {
               url: 'https://github.com/YeLwinOo-Steve/pretty_animated_text',
               assetPath: 'assets/github.png',
               tooltip: 'View on GitHub',
+              tintToForeground: true,
             ),
           ],
         ),
@@ -80,8 +81,14 @@ class _SocialButton extends StatefulWidget {
   final String assetPath;
   final String tooltip;
 
-  const _SocialButton(
-      {required this.url, required this.assetPath, required this.tooltip});
+  final bool tintToForeground;
+
+  const _SocialButton({
+    required this.url,
+    required this.assetPath,
+    required this.tooltip,
+    this.tintToForeground = false,
+  });
 
   @override
   State<_SocialButton> createState() => _SocialButtonState();
@@ -135,7 +142,15 @@ class _SocialButtonState extends State<_SocialButton> {
                       ),
                     ],
             ),
-            child: Image.asset(widget.assetPath),
+            child: widget.tintToForeground
+                ? ColorFiltered(
+                    colorFilter: ColorFilter.mode(
+                      colorScheme.onSurface,
+                      BlendMode.srcIn,
+                    ),
+                    child: Image.asset(widget.assetPath),
+                  )
+                : Image.asset(widget.assetPath),
           ),
         ),
       ),
