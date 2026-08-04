@@ -1,3 +1,4 @@
+
 <div align="center">
 
 <img src="https://raw.githubusercontent.com/YeLwinOo-Steve/pretty_animated_text/master/example/assets/logo.png" width="120" alt="Pretty Animated Text logo" />
@@ -19,9 +20,8 @@ Physics-based animations are utilized for text animations, providing a smooth an
 
 > This project heavily inspires on [jasudev's AnimateText for SwiftUI package](https://github.com/jasudev/AnimateText)
 
-
 <div align="center">
-  <img src="https://raw.githubusercontent.com/YeLwinOo-Steve/pretty_animated_text/master/doc/demo_v3.gif" width="600" alt="Pretty Animated Text demo" />
+  <video src="https://github.com/user-attachments/assets/8cc22fa6-f4fd-47e2-b896-a3ce6cf0ddee" width="600" muted controls></video>
 </div>
 
 ### Key Features: 
