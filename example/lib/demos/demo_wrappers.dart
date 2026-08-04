@@ -39,7 +39,7 @@ class ChimeBellDemo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ChimeBellText(
         text: demoText,
-        style: demoTextStyle,
+        style: demoTextStyleOf(context),
         textAlign: textAlign,
         config: _buildConfig(runtimeType, type, duration, onControllerCreated),
         onControllerCreated: onControllerCreated,
@@ -63,7 +63,7 @@ class SpringDemo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SpringText(
         text: demoText,
-        style: demoTextStyle,
+        style: demoTextStyleOf(context),
         textAlign: textAlign,
         config: _buildConfig(runtimeType, type, duration, onControllerCreated),
         onControllerCreated: onControllerCreated,
@@ -87,7 +87,7 @@ class ScaleTextDemo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ScaleText(
         text: demoText,
-        style: demoTextStyle,
+        style: demoTextStyleOf(context),
         textAlign: textAlign,
         config: _buildConfig(runtimeType, type, duration, onControllerCreated),
         onControllerCreated: onControllerCreated,
@@ -113,7 +113,7 @@ class RotateTextDemo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => RotateText(
         text: demoText,
-        style: demoTextStyle,
+        style: demoTextStyleOf(context),
         textAlign: textAlign,
         direction: direction,
         config: _buildConfig(runtimeType, type, duration, onControllerCreated),
@@ -138,7 +138,7 @@ class BlurTextDemo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => BlurText(
         text: demoText,
-        style: demoTextStyle,
+        style: demoTextStyleOf(context),
         textAlign: textAlign,
         config: _buildConfig(runtimeType, type, duration, onControllerCreated),
         onControllerCreated: onControllerCreated,
@@ -162,7 +162,7 @@ class RevealTextDemo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => RevealText(
         text: demoText,
-        style: demoTextStyle,
+        style: demoTextStyleOf(context),
         textAlign: textAlign,
         config: _buildConfig(runtimeType, type, duration, onControllerCreated),
         onControllerCreated: onControllerCreated,
@@ -186,7 +186,61 @@ class ScrambleTextDemo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ScrambleText(
         text: demoText,
-        style: demoTextStyle,
+        style: demoTextStyleOf(context),
+        textAlign: textAlign,
+        config: _buildConfig(runtimeType, type, duration, onControllerCreated),
+        onControllerCreated: onControllerCreated,
+      );
+}
+
+class SquashBounceDemo extends StatelessWidget {
+  final AnimationType type;
+  final Duration duration;
+  final TextAlign textAlign;
+  final void Function(AnimatedTextController)? onControllerCreated;
+
+  const SquashBounceDemo({
+    super.key,
+    this.type = AnimationType.letter,
+    this.duration = letterAnimationDuration,
+    this.textAlign = TextAlign.start,
+    this.onControllerCreated,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Squash bounce reads better fast: shift each speed one notch quicker
+    // (slow→old medium, medium→old fast, fast→a new faster) by halving.
+    final fasterDuration =
+        Duration(microseconds: duration.inMicroseconds ~/ 2);
+    return SquashBounceText(
+      text: demoText,
+      style: demoTextStyleOf(context),
+      textAlign: textAlign,
+      config: _buildConfig(runtimeType, type, fasterDuration, onControllerCreated),
+      onControllerCreated: onControllerCreated,
+    );
+  }
+}
+
+class GlitchTextDemo extends StatelessWidget {
+  final AnimationType type;
+  final Duration duration;
+  final TextAlign textAlign;
+  final void Function(AnimatedTextController)? onControllerCreated;
+
+  const GlitchTextDemo({
+    super.key,
+    this.type = AnimationType.letter,
+    this.duration = letterAnimationDuration,
+    this.textAlign = TextAlign.start,
+    this.onControllerCreated,
+  });
+
+  @override
+  Widget build(BuildContext context) => GlitchText(
+        text: demoText,
+        style: demoTextStyleOf(context),
         textAlign: textAlign,
         config: _buildConfig(runtimeType, type, duration, onControllerCreated),
         onControllerCreated: onControllerCreated,
@@ -212,7 +266,7 @@ class GravityTextDemo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GravityText(
         text: demoText,
-        style: demoTextStyle,
+        style: demoTextStyleOf(context),
         textAlign: textAlign,
         // GravityText is a physics sim — it ignores repeat / reverse, so build a
         // config without them (see the asserts in GravityText).
@@ -248,7 +302,7 @@ class SlideTextDemo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SlideText(
         text: demoText,
-        style: demoTextStyle,
+        style: demoTextStyleOf(context),
         textAlign: textAlign,
         slideType: slideType,
         config: _buildConfig(runtimeType, type, duration, onControllerCreated),

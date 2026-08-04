@@ -6,12 +6,15 @@ import 'home_page.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Preload demo fonts so the first frame of the Scale demo (and any other
-  // effect using these styles) renders with the correct typeface instead of
-  // the fallback while google_fonts fetches in the background.
+  // Preload UI fonts (Figtree, JetBrains Mono) and the animated showcase font
+  // (Comic Neue) so the first frame renders with the correct typefaces.
   await GoogleFonts.pendingFonts([
+    GoogleFonts.figtree(fontWeight: FontWeight.w400),
+    GoogleFonts.figtree(fontWeight: FontWeight.w500),
+    GoogleFonts.figtree(fontWeight: FontWeight.w600),
+    GoogleFonts.figtree(fontWeight: FontWeight.w700),
+    GoogleFonts.jetBrainsMono(fontWeight: FontWeight.w400),
     GoogleFonts.comicNeue(fontWeight: FontWeight.w900),
-    GoogleFonts.plusJakartaSans(),
   ]);
 
   runApp(const PrettyAnimatedTextApp());
@@ -26,44 +29,16 @@ class PrettyAnimatedTextApp extends StatelessWidget {
       title: 'Pretty Animated Text',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: kBrandIndigo,
-          surface: const Color(0xFFF8FAFC),
-        ),
-        textTheme: GoogleFonts.plusJakartaSansTextTheme(),
-        scaffoldBackgroundColor: Colors.transparent,
         useMaterial3: true,
-      ),
-      home: const _GradientScaffold(),
-    );
-  }
-}
-
-class _GradientScaffold extends StatelessWidget {
-  const _GradientScaffold();
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  kBgGradientTop,
-                  kBgGradientBottom,
-                  kBgGradientTop,
-                ],
-                stops: [0.0, 0.5, 1.0],
-              ),
-            ),
-          ),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: dsAccent,
+          brightness: Brightness.light,
+          surface: dsSurface,
         ),
-        const HomeWidget(),
-      ],
+        scaffoldBackgroundColor: dsSurface,
+        textTheme: GoogleFonts.figtreeTextTheme(ThemeData.light().textTheme),
+      ),
+      home: const HomeWidget(),
     );
   }
 }

@@ -103,4 +103,32 @@ class AnimationConfig {
       type: type ?? this.type,
     );
   }
+
+  // Value equality (ignoring callbacks) so a rebuilt-but-equivalent config
+  // doesn't trigger a spurious animation restart in didUpdateWidget.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AnimationConfig &&
+          runtimeType == other.runtimeType &&
+          duration == other.duration &&
+          delay == other.delay &&
+          curve == other.curve &&
+          reverse == other.reverse &&
+          repeat == other.repeat &&
+          repeatCount == other.repeatCount &&
+          repeatDelay == other.repeatDelay &&
+          type == other.type;
+
+  @override
+  int get hashCode => Object.hash(
+        duration,
+        delay,
+        curve,
+        reverse,
+        repeat,
+        repeatCount,
+        repeatDelay,
+        type,
+      );
 }

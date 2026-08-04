@@ -34,6 +34,8 @@ Physics-based animations are utilized for text animations, providing a smooth an
   - Blur animation
   - Offset (slide) animation
   - Scramble animation *(new in v3)*
+  - Glitch animation with RGB-split chromatic shadows *(new in v3.2)*
+  - Squash bounce animation with an elastic traveling wave *(new in v3.2)*
   - Reveal animation with sliding cursor *(new in v3)*
   - Gravity animation with real 2D rigid-body physics (collisions, piling, tap & drag) via forge2d *(new in v3)*
 - Supports both letter-by-letter and word-by-word animations
@@ -167,6 +169,68 @@ Currently, the plugin supports default Flutter text alignments:
   Phase 1 (first half of the animation): every character cycles through random
   glyphs. Phase 2 (second half): characters resolve left-to-right into the
   final text. Spaces are never scrambled.
+
+- Glitch Text *(new in v3.2)*
+  ```dart
+    GlitchText(
+      text: 'Lorem ipsum dolor sit amet ...',
+      style: const TextStyle(fontSize: 18),
+      config: AnimationConfig(
+        duration: const Duration(milliseconds: 300),
+        type: AnimationType.word, // or AnimationType.letter
+        repeat: true, // loop the glitch continuously
+      ),
+      // Optional: customize the tear (defaults shown)
+      glitchStyle: const GlitchStyle(
+        shadows: true, // true = chromatic tinted tear + RGB-split shadow fringe
+        color1: Color(0xFFFF2E88), // primary split (pink)
+        color2: Color(0xFF23D7F5), // secondary split (cyan)
+        shadowColor: Color(0xFF0D0A1A), // dark shadow accent
+      ),
+    )
+  ```
+  All characters are visible and readable from the start; a random, rotating
+  subset briefly glitches by tearing into horizontal slices that shear sideways
+  (with an RGB-split shadow fringe on the sheared parts when `shadows` is on).
+  In `word` mode at most one word glitches at a time; in `letter` mode a random
+  group of 2-3 letters glitches together. The order covers every segment exactly
+  once per forward pass and is reshuffled on each repeat. Because the slices are
+  disjoint bands, each glyph is still drawn exactly once (no ghosting), so the
+  text stays readable while it tears — the caller's `TextStyle` (font, weight) is
+  preserved. Use `GlitchStyle(shadows: true)` for a chromatic tinted tear or
+  `shadows: false` for a clean monochrome one. Enable `config.repeat` for a
+  continuous loop.
+
+- Squash Bounce Text *(new in v3.2)*
+
+  A SplitText-inspired squash bounce. Each glyph drops, squashes, and rotates,
+  then elastically settles back to rest — animating as a continuous traveling
+  wave across the text.
+
+  ```dart
+    SquashBounceText(
+      text: 'Lorem ipsum dolor sit amet ...',
+      style: const TextStyle(fontSize: 18),
+      config: AnimationConfig(
+        duration: const Duration(milliseconds: 150),
+        type: AnimationType.letter, // or AnimationType.word
+        repeat: true, // loop the bounce continuously
+      ),
+      // Optional: customize the bounce (defaults shown)
+      squashStyle: const SquashBounceStyle(
+        dropFraction: 0.5, // peak drop as a fraction of glyph height
+        squashScaleY: 0.3, // vertical scale at the squash peak
+        rotateDegrees: 17, // peak rotation, pivoting on the glyph's bottom
+        squashPhase: 0.2, // fraction of each glyph's window spent squashing in
+        waveSpread: 0.6, // smaller = tighter wave, larger = more sequential
+      ),
+    )
+  ```
+  Each glyph runs its full drop→squash→elastic-return over a wide window while
+  the start times are packed tightly, so many glyphs are mid-flight at slightly
+  offset phases — reading as one wave traveling across the text. The caller's
+  `TextStyle` (font, weight) is preserved. Enable `config.repeat` for a
+  continuous loop.
 
 - Reveal Text *(new in v3)*
   ```dart
