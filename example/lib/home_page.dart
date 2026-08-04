@@ -1,23 +1,18 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:pretty_animated_text/pretty_animated_text.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'core/constants.dart';
 import 'demos/demo_wrappers.dart';
 import 'models/animation_demo_item.dart';
-import 'widgets/control_button.dart';
-import 'widgets/header.dart';
-import 'widgets/mode_toggle_round.dart';
-import 'widgets/speed_selector.dart';
-import 'widgets/text_align_toggle.dart';
-import 'widgets/variation_selector.dart';
+import 'widgets/ds_button.dart';
+import 'widgets/ds_nav_item.dart';
+import 'widgets/ds_segmented.dart';
+import 'widgets/ds_status_pill.dart';
+import 'widgets/ds_tabs.dart';
 
 class HomeWidget extends StatefulWidget {
-  final VoidCallback onToggleTheme;
-  const HomeWidget({super.key, required this.onToggleTheme});
+  const HomeWidget({super.key});
 
   @override
   State<HomeWidget> createState() => _HomeWidgetState();
@@ -27,12 +22,10 @@ class _HomeWidgetState extends State<HomeWidget> {
   AnimatedTextController? _currentController;
   final ValueNotifier<AnimatedTextController?> _controllerNotifier =
       ValueNotifier(null);
-  final PageController _pageController = PageController();
-  final Duration _pageTransitionDuration = const Duration(milliseconds: 400);
-  final Curve _curve = Curves.fastOutSlowIn;
 
   bool _isWordMode = false;
   int _currentPage = 0;
+  int _tab = 0; // 0 = Preview, 1 = Code
   TextAlign _textAlign = TextAlign.start;
   int _speedIndex = 1; // 0=slow, 1=medium, 2=fast
   bool _interactionEnabled = true; // Gravity demo: tap/drag interaction
@@ -45,43 +38,52 @@ class _HomeWidgetState extends State<HomeWidget> {
 
   static const _slideVariations = [
     VariationOption<SlideAnimationType>(
-      icon: Icons.arrow_forward,
-      value: SlideAnimationType.leftRight,
-    ),
+        icon: Icons.arrow_forward, value: SlideAnimationType.leftRight),
     VariationOption<SlideAnimationType>(
-      icon: Icons.arrow_back,
-      value: SlideAnimationType.rightLeft,
-    ),
+        icon: Icons.arrow_back, value: SlideAnimationType.rightLeft),
     VariationOption<SlideAnimationType>(
-      icon: Icons.arrow_downward,
-      value: SlideAnimationType.topBottom,
-    ),
+        icon: Icons.arrow_downward, value: SlideAnimationType.topBottom),
     VariationOption<SlideAnimationType>(
-      icon: Icons.arrow_upward,
-      value: SlideAnimationType.bottomTop,
-    ),
+        icon: Icons.arrow_upward, value: SlideAnimationType.bottomTop),
     VariationOption<SlideAnimationType>(
-      icon: Icons.swap_vert,
-      value: SlideAnimationType.alternateTB,
-    ),
+        icon: Icons.swap_vert, value: SlideAnimationType.alternateTB),
     VariationOption<SlideAnimationType>(
-      icon: Icons.swap_horiz,
-      value: SlideAnimationType.alternateLR,
-    ),
+        icon: Icons.swap_horiz, value: SlideAnimationType.alternateLR),
   ];
 
   static const _rotateVariations = [
     VariationOption<RotateAnimationType>(
-      label: 'Clockwise',
-      icon: Icons.rotate_right,
-      value: RotateAnimationType.clockwise,
-    ),
+        label: 'Clockwise',
+        icon: Icons.rotate_right,
+        value: RotateAnimationType.clockwise),
     VariationOption<RotateAnimationType>(
-      label: 'Anti-clockwise',
-      icon: Icons.rotate_left,
-      value: RotateAnimationType.anticlockwise,
-    ),
+        label: 'Anti-clockwise',
+        icon: Icons.rotate_left,
+        value: RotateAnimationType.anticlockwise),
   ];
+
+  // Sidebar presentation order (independent of the _demos index used for the
+  // content). A version chip + dashed divider is inserted above the title that
+  // starts each version group.
+  static const _orderedTitles = <String>[
+    'Glitch',
+    'Squash Bounce',
+    'Gravity',
+    'Scramble',
+    'Spring',
+    'Reveal',
+    'Scale',
+    'Slide',
+    'Rotate',
+    'Chime Bell',
+    'Blur',
+  ];
+  static const _versionHeaders = <String, String>{
+    'Glitch': 'v3.2.0',
+    'Gravity': 'v3.1.0',
+  };
+
+  int _indexOf(String title) => _demos.indexWhere((d) => d.title == title);
 
   @override
   void initState() {
@@ -212,53 +214,49 @@ class _HomeWidgetState extends State<HomeWidget> {
             onControllerCreated: onCreated),
       ),
     ];
-
     _variationIndices = List.filled(_demos.length, 0);
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
     _controllerNotifier.dispose();
     super.dispose();
   }
 
+  AnimationDemoItem get _currentDemo => _demos[_currentPage];
+
+  // ── Controls ───────────────────────────────────────────────────────────
   void _handlePlay() {
-    if (_currentController == null) return;
-    if (_currentController!.isAnimating) return;
-    if (_currentController!.isPaused || _currentController!.isRepeating) {
-      _currentController!.resume();
+    final c = _currentController;
+    if (c == null || c.isAnimating) return;
+    if (c.isPaused || c.isRepeating) {
+      c.resume();
     } else {
-      _currentController!.play();
+      c.play();
     }
   }
 
   void _handlePlayPause() {
     final c = _currentController;
     if (c == null) return;
-    if (c.isAnimating) {
-      c.pause();
-    } else {
-      _handlePlay();
-    }
+    c.isAnimating ? c.pause() : _handlePlay();
   }
 
   void _handleRepeat() => _currentController?.repeat();
 
-  // Copy a ready-to-paste usage snippet for the current effect, reflecting the
-  // live mode / speed / alignment (and variation, where applicable).
-  Future<void> _copyUsage() async {
-    final demo = _demos[_currentPage];
-    await Clipboard.setData(ClipboardData(text: _usageSnippet(demo)));
-    if (!mounted) return;
+  void _selectEffect(int index) {
+    if (_currentPage == index) return;
+    setState(() => _currentPage = index);
+  }
 
-    final cs = Theme.of(context).colorScheme;
+  // ── Usage snippet + copy ───────────────────────────────────────────────
+  Future<void> _copyUsage() async {
+    await Clipboard.setData(ClipboardData(text: _usageSnippet(_currentDemo)));
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          // Transparent full-width shell; the visible pill is end-aligned and
-          // sized to its content.
           behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -267,33 +265,21 @@ class _HomeWidgetState extends State<HomeWidget> {
           content: Align(
             alignment: Alignment.centerRight,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               decoration: BoxDecoration(
-                color: surfaceColor(cs.brightness),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: cs.outlineVariant.withValues(alpha: 0.4),
-                ),
-                boxShadow: kControlPillShadows,
+                color: dsSurface,
+                borderRadius: BorderRadius.circular(r10),
+                border: Border.all(color: dsBorder),
+                boxShadow: dsOverlayShadow,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.check_circle_rounded,
-                    color: kStatusPlaying,
-                    size: 18,
-                  ),
+                  const Icon(Icons.check_circle_rounded,
+                      color: dsAccent, size: 16),
                   const SizedBox(width: 8),
-                  Text(
-                    '${demo.title} usage copied',
-                    style: TextStyle(
-                      color: cs.onSurface,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
+                  Text('${_currentDemo.title} usage copied',
+                      style: dsLabel()),
                 ],
               ),
             ),
@@ -308,7 +294,6 @@ class _HomeWidgetState extends State<HomeWidget> {
     final align = 'TextAlign.${_textAlign.name}';
     final vi = _variationIndices[_currentPage];
 
-    // Effect title -> widget class name (+ any constructor-level variation arg).
     String widgetName;
     final ctorArgs = <String>[];
     switch (demo.title) {
@@ -343,7 +328,6 @@ class _HomeWidgetState extends State<HomeWidget> {
       ..writeln('  config: AnimationConfig(')
       ..writeln('    duration: const Duration(milliseconds: $ms),')
       ..writeln('    type: $type,');
-    // Gravity is a physics sim and ignores repeat/reverse.
     if (demo.title != 'Gravity') {
       b.writeln('    repeat: true,');
     }
@@ -353,71 +337,48 @@ class _HomeWidgetState extends State<HomeWidget> {
     return b.toString();
   }
 
-  void _onModeChanged(bool isWord) {
-    if (_isWordMode == isWord) return;
-    setState(() => _isWordMode = isWord);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _handleRepeat());
+  Future<void> _launch(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri)) {
+      throw Exception('Could not launch $url');
+    }
   }
 
-  void _onVariationChanged(int pageIndex, int variationIndex) {
-    if (_variationIndices[pageIndex] == variationIndex) return;
-    setState(() => _variationIndices[pageIndex] = variationIndex);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _handleRepeat());
-  }
-
-  void _onTextAlignChanged(TextAlign align) {
-    if (_textAlign == align) return;
-    setState(() => _textAlign = align);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _handleRepeat());
-  }
-
-  void _onSpeedChanged(int index) {
-    if (_speedIndex == index) return;
-    setState(() => _speedIndex = index);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _handleRepeat());
-  }
-
+  // ── Build ──────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDesktop = MediaQuery.of(context).size.width > 800;
+    final width = MediaQuery.of(context).size.width;
+    final isWide = width >= 900;
 
-    return SelectionArea(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1200),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isDesktop ? 48.0 : 20.0,
-                  vertical: 24.0,
+    return Scaffold(
+      backgroundColor: dsSurface,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1120),
+            child: Padding(
+              padding: EdgeInsets.all(isWide ? 40 : 16),
+              child: Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: dsSurface,
+                  border: Border.all(color: dsBorder),
+                  borderRadius: BorderRadius.circular(r12),
                 ),
-                child: Column(
-                  children: [
-                    Header(colorScheme: colorScheme),
-                    const SizedBox(height: 28),
-                    Expanded(
-                      child: Row(
+                child: isWide
+                    ? Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (isDesktop) ...[
-                            Expanded(
-                              flex: 1,
-                              child: _buildSideNavigation(colorScheme),
-                            ),
-                            const SizedBox(width: 20),
-                          ],
-                          Expanded(
-                            flex: 3,
-                            child: _buildMainContent(colorScheme, isDesktop),
-                          ),
+                          SizedBox(width: 232, child: _sidebar()),
+                          Expanded(child: _contentColumn(isWide)),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          _mobileNav(),
+                          Expanded(child: _contentColumn(isWide)),
                         ],
                       ),
-                    ),
-                  ],
-                ),
               ),
             ),
           ),
@@ -426,278 +387,208 @@ class _HomeWidgetState extends State<HomeWidget> {
     );
   }
 
-  // ── Side navigation ──────────────────────────────────────────────────────
-
-  Widget _buildSideNavigation(ColorScheme colorScheme) {
+  // ── Sidebar (wide) ─────────────────────────────────────────────────────
+  Widget _sidebar() {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: surfaceColor(colorScheme.brightness),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: kCardShadows,
+      decoration: const BoxDecoration(
+        color: dsSubtle,
+        border: Border(right: BorderSide(color: dsBorder)),
       ),
+      padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
               children: [
-                Text(
-                  'Animations',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: colorScheme.onSurface,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${_demos.length} types',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                Image.asset('assets/logo.png', width: 48, height: 48),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text('Pretty Animated Text',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: dsText(size: 13, weight: FontWeight.w600)),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 22),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text('EFFECTS', style: dsEyebrow()),
+          ),
+          const SizedBox(height: 8),
           Expanded(
-            child: ListView.separated(
-              itemCount: _demos.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 6),
-              itemBuilder: (context, index) {
-                final isSelected = _currentPage == index;
-                final icon =
-                    kDemoIcons[_demos[index].title] ?? Icons.animation_rounded;
-                return InkWell(
-                  onTap: () => _pageController.animateToPage(
-                    index,
-                    duration: _pageTransitionDuration,
-                    curve: _curve,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeInOut,
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 14),
-                    decoration: BoxDecoration(
-                      gradient: isSelected
-                          ? LinearGradient(colors: [
-                              colorScheme.primaryContainer,
-                              colorScheme.primaryContainer
-                                  .withValues(alpha: 0.55),
-                            ])
-                          : null,
-                      color: isSelected ? null : Colors.transparent,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: isSelected ? kNavSelectedShadows : null,
-                    ),
-                    child: Row(
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? colorScheme.primary.withValues(alpha: 0.12)
-                                : colorScheme.surfaceContainerHighest
-                                    .withValues(alpha: 0.7),
-                            borderRadius: BorderRadius.circular(9),
-                          ),
-                          child: Icon(
-                            icon,
-                            size: 16,
-                            color: isSelected
-                                ? colorScheme.primary
-                                : colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _demos[index].title,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                              color: isSelected
-                                  ? colorScheme.primary
-                                  : colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                        if (isSelected)
-                          Icon(Icons.arrow_forward_ios_rounded,
-                              size: 11, color: colorScheme.primary),
-                      ],
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 4),
+              children: [
+                for (final title in _orderedTitles) ...[
+                  if (_versionHeaders[title] != null)
+                    _versionHeader(_versionHeaders[title]!),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: DsNavItem(
+                      label: title,
+                      icon: kDemoIcons[title],
+                      isActive: _currentPage == _indexOf(title),
+                      onTap: () => _selectEffect(_indexOf(title)),
                     ),
                   ),
-                );
-              },
+                ],
+              ],
             ),
           ),
+          const SizedBox(height: 12),
+          _linksCard(),
         ],
       ),
     );
   }
 
-  // ── Main content card ────────────────────────────────────────────────────
-
-  Widget _buildMainContent(ColorScheme colorScheme, bool isDesktop) {
-    final currentDemo = _demos[_currentPage];
-    final currentVariationIndex = _variationIndices[_currentPage];
-
+  Widget _linksCard() {
     return Container(
-      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
       decoration: BoxDecoration(
-        color: surfaceColor(colorScheme.brightness),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: kCardShadows,
+        color: dsSurface,
+        border: Border.all(color: dsBorder),
+        borderRadius: BorderRadius.circular(r8),
       ),
-      child: Column(
-        children: [
-          _buildCardHeader(colorScheme, currentDemo),
-          _buildToolbar(colorScheme),
-          Expanded(child: _buildCanvas()),
-          _buildFooter(
-              colorScheme, isDesktop, currentDemo, currentVariationIndex),
-        ],
-      ),
-    );
-  }
-
-  // Card header: title + status chip only
-  Widget _buildCardHeader(
-      ColorScheme colorScheme, AnimationDemoItem currentDemo) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 14),
       child: Row(
         children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 280),
-            transitionBuilder: (child, animation) {
-              final offset = Tween<Offset>(
-                begin: const Offset(0, 0.2),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                  parent: animation, curve: Curves.easeOutCubic));
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(position: offset, child: child),
-              );
-            },
-            child: Text(
-              currentDemo.title,
-              key: ValueKey(currentDemo.title),
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: colorScheme.onSurface,
-                letterSpacing: -0.4,
-              ),
+          Expanded(
+            child: Text('pretty_animated_text',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: dsText(size: 12, weight: FontWeight.w500)),
+          ),
+          _imageLink(
+              asset: 'assets/pub.png',
+              url: 'https://pub.dev/packages/pretty_animated_text',
+              tooltip: 'pub.dev'),
+          _imageLink(
+              asset: 'assets/github.png',
+              url: 'https://github.com/YeLwinOo-Steve/pretty_animated_text',
+              tooltip: 'GitHub',
+              tint: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _imageLink({
+    required String asset,
+    required String url,
+    required String tooltip,
+    bool tint = false,
+  }) {
+    Widget img = Image.asset(asset, width: 18, height: 18);
+    if (tint) {
+      img = ColorFiltered(
+        colorFilter: const ColorFilter.mode(dsText2, BlendMode.srcIn),
+        child: img,
+      );
+    }
+    return Tooltip(
+      message: tooltip,
+      child: _HoverBox(
+        builder: (hovered) => GestureDetector(
+          onTap: () => _launch(url),
+          child: Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: hovered ? dsFill : Colors.transparent,
+              borderRadius: BorderRadius.circular(r6),
             ),
+            child: img,
           ),
-          const SizedBox(width: 10),
-          _statusChip(colorScheme),
-          const Spacer(),
-          _CopyUsageButton(
-            colorScheme: colorScheme,
-            onCopy: _copyUsage,
-          ),
-          const SizedBox(width: 8),
-          _ThemeToggle(
-            colorScheme: colorScheme,
-            onToggle: widget.onToggleTheme,
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  // Toolbar shelf: all controls in one horizontal scrollable band
-  Widget _buildToolbar(ColorScheme colorScheme) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.symmetric(
-          horizontal: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.22),
-          ),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+  Widget _versionHeader(String version) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 10, 2, 8),
+      child: Row(
         children: [
-          ModeToggleRound(
-            isWordMode: _isWordMode,
-            onChanged: _onModeChanged,
-            colorScheme: colorScheme,
-          ),
-          SpeedSelector(
-            selectedIndex: _speedIndex,
-            onChanged: _onSpeedChanged,
-            colorScheme: colorScheme,
-          ),
-          TextAlignToggle(
-            selected: _textAlign,
-            onChanged: _onTextAlignChanged,
-            colorScheme: colorScheme,
-          ),
+          _versionChip(version),
+          const SizedBox(width: 8),
+          const Expanded(child: _DashedLine()),
         ],
       ),
     );
   }
 
-  // Canvas: animation PageView with gradient background
-  Widget _buildCanvas() {
+  Widget _versionChip(String version) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: canvasGradient(Theme.of(context).brightness),
-          stops: const [0.0, 0.5, 1.0],
-        ),
+        border: Border.all(color: dsBorder),
+        borderRadius: BorderRadius.circular(rPill),
       ),
-      child: PageView.builder(
-        controller: _pageController,
-        onPageChanged: (index) {
-          setState(() => _currentPage = index);
-          WidgetsBinding.instance.addPostFrameCallback((_) => _handleRepeat());
-        },
-        itemCount: _demos.length,
-        itemBuilder: (context, index) {
-          final demo = _demos[index];
-          final isCurrentPage = index == _currentPage;
-          final vi = _variationIndices[index];
+      child: Text(version,
+          style: dsText(size: 12, weight: FontWeight.w500, color: dsMuted)),
+    );
+  }
 
-          void onControllerCreated(AnimatedTextController c) {
-            if (isCurrentPage && _currentController != c) {
-              _currentController = c;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) _controllerNotifier.value = c;
-              });
-            }
+  // ── Mobile top nav (narrow) ────────────────────────────────────────────
+  Widget _mobileNav() {
+    // Same order + version markers as the sidebar, flattened for a horizontal
+    // rail (version chips render inline before each group).
+    final entries = <({String? version, String? title})>[
+      for (final title in _orderedTitles) ...[
+        if (_versionHeaders[title] != null)
+          (version: _versionHeaders[title], title: null),
+        (version: null, title: title),
+      ],
+    ];
+
+    return Container(
+      height: 56,
+      decoration: const BoxDecoration(
+        color: dsSubtle,
+        border: Border(bottom: BorderSide(color: dsBorder)),
+      ),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        itemCount: entries.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final entry = entries[i];
+          if (entry.version != null) {
+            return Center(child: _versionChip(entry.version!));
           }
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Center(
-              key: ValueKey(
-                  '${demo.title}_${_isWordMode}_${vi}_${_textAlign}_${_speedIndex}_$isCurrentPage'),
-              child: _isWordMode
-                  ? demo.buildWord(
-                      onControllerCreated, vi, _textAlign, _wordDuration)
-                  : demo.buildLetter(
-                      onControllerCreated, vi, _textAlign, _letterDuration),
+          final title = entry.title!;
+          final index = _indexOf(title);
+          final active = _currentPage == index;
+          return _HoverBox(
+            builder: (hovered) => GestureDetector(
+              onTap: () => _selectEffect(index),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: active ? dsInk : (hovered ? dsHover : dsSurface),
+                  border: Border.all(color: active ? dsInk : dsBorder),
+                  borderRadius: BorderRadius.circular(rPill),
+                ),
+                child: Row(
+                  children: [
+                    Icon(kDemoIcons[title],
+                        size: 14, color: active ? dsSurface : dsText2),
+                    const SizedBox(width: 7),
+                    Text(title,
+                        style: dsText(
+                            size: 13,
+                            weight: FontWeight.w500,
+                            color: active ? dsSurface : dsText2)),
+                  ],
+                ),
+              ),
             ),
           );
         },
@@ -705,174 +596,114 @@ class _HomeWidgetState extends State<HomeWidget> {
     );
   }
 
-  // Footer: variation selector OR page dots on left, play controls on right
-  Widget _buildFooter(
-    ColorScheme colorScheme,
-    bool isDesktop,
-    AnimationDemoItem currentDemo,
-    int currentVariationIndex,
-  ) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 14, 24, 20),
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.22),
-          ),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Left: variations if present, else page dots on mobile.
-          // Wrapped so a wide selector scrolls instead of overflowing on
-          // narrow screens, while still hugging its content when it fits.
-          Flexible(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: currentDemo.hasVariations
-                  ? VariationSelector(
-                      variations: currentDemo.variations,
-                      selectedIndex: currentVariationIndex,
-                      onChanged: (i) => _onVariationChanged(_currentPage, i),
-                      colorScheme: colorScheme,
-                    )
-                  : (!isDesktop
-                      ? SmoothPageIndicator(
-                          controller: _pageController,
-                          count: _demos.length,
-                          effect: ExpandingDotsEffect(
-                            activeDotColor: colorScheme.primary,
-                            dotColor: colorScheme.outlineVariant,
-                            dotHeight: 7,
-                            dotWidth: 7,
-                            expansionFactor: 3,
-                          ),
-                          onDotClicked: (index) =>
-                              _pageController.animateToPage(
-                            index,
-                            duration: _pageTransitionDuration,
-                            curve: _curve,
-                          ),
-                        )
-                      : const SizedBox.shrink()),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Right: interaction toggle (Gravity only) + play controls
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (currentDemo.title == 'Gravity') ...[
-                _buildInteractionToggle(colorScheme),
-                const SizedBox(width: 12),
-              ],
-              _buildPlayControls(colorScheme),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Interaction enable/disable toggle for the Gravity demo.
-  Widget _buildInteractionToggle(ColorScheme colorScheme) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+  // ── Content column ─────────────────────────────────────────────────────
+  Widget _contentColumn(bool isWide) {
+    return Column(
       children: [
-        Text(
-          'Interact',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: colorScheme.onSurfaceVariant,
-          ),
+        _topbar(isWide),
+        DsTabs(
+          tabs: const ['Preview', 'Code'],
+          selectedIndex: _tab,
+          onChanged: (i) => setState(() => _tab = i),
         ),
-        const SizedBox(width: 8),
-        Switch(
-          value: _interactionEnabled,
-          activeColor: colorScheme.primary,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          onChanged: (v) => setState(() => _interactionEnabled = v),
+        Expanded(
+          child: _tab == 0 ? _previewTab() : _codeTab(),
         ),
       ],
     );
   }
 
-  // ── Status chip ──────────────────────────────────────────────────────────
+  Widget _topbar(bool isWide) {
+    final sep = dsText(size: 13, color: dsPlaceholder);
+    final crumb = dsText(size: 13, color: dsMuted);
 
-  ValueListenableBuilder<AnimatedTextController?> _statusChip(
-      ColorScheme colorScheme) {
+    // Single ellipsizing rich text — leading crumbs collapse gracefully as the
+    // topbar narrows instead of overflowing the row.
+    final breadcrumb = Text.rich(
+      TextSpan(
+        children: [
+          if (isWide) ...[
+            TextSpan(text: 'pretty_animated_text', style: crumb),
+            TextSpan(text: '   /   ', style: sep),
+            TextSpan(text: 'Effects', style: crumb),
+            TextSpan(text: '   /   ', style: sep),
+          ],
+          TextSpan(text: _currentDemo.title, style: dsLabel()),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: dsBorder)),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: breadcrumb),
+          const SizedBox(width: 12),
+          _controllerActions(isWide),
+        ],
+      ),
+    );
+  }
+
+  Widget _controllerActions(bool isWide) {
     return ValueListenableBuilder<AnimatedTextController?>(
       valueListenable: _controllerNotifier,
       builder: (context, controller, _) {
         return ListenableBuilder(
           listenable: controller ?? ChangeNotifier(),
           builder: (context, _) {
-            String statusText;
-            Color chipBg;
-            Color chipFg;
-            IconData chipIcon;
-
-            if (controller == null) {
-              statusText = 'Stopped';
-              chipBg = kStatusStoppedBg;
-              chipFg = kStatusStopped;
-              chipIcon = Icons.stop_circle_outlined;
-            } else if (controller.isAnimating) {
-              statusText = controller.repeatCount > 0
-                  ? 'Repeat ${controller.repeatCount}'
-                  : 'Playing';
-              chipBg = kStatusPlayingBg;
-              chipFg = kStatusPlaying;
-              chipIcon = Icons.play_circle_outline_rounded;
-            } else if (controller.isPaused) {
-              statusText = 'Paused';
-              chipBg = kStatusPausedBg;
-              chipFg = kStatusPaused;
-              chipIcon = Icons.pause_circle_outline_rounded;
-            } else if (controller.isCompleted) {
-              statusText = 'Completed';
-              chipBg = kStatusCompleteBg;
-              chipFg = kStatusComplete;
-              chipIcon = Icons.check_circle_outline_rounded;
-            } else {
-              statusText = 'Stopped';
-              chipBg = kStatusStoppedBg;
-              chipFg = kStatusStopped;
-              chipIcon = Icons.stop_circle_outlined;
-            }
-
-            return AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              transitionBuilder: (child, anim) => ScaleTransition(
-                scale: CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
-                child: FadeTransition(opacity: anim, child: child),
-              ),
-              child: Container(
-                key: ValueKey(statusText),
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: chipBg,
-                  borderRadius: BorderRadius.circular(20),
+            final playing = controller?.isAnimating ?? false;
+            final (kind, label) = _statusOf(controller);
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isWide) ...[
+                  DsStatusPill(kind: kind, label: label),
+                  const SizedBox(width: 8),
+                ],
+                DsIconButton(
+                  icon: Icons.refresh_rounded,
+                  variant: DsIconVariant.ghost,
+                  size: 30,
+                  radius: r7,
+                  iconSize: 15,
+                  tooltip: 'Repeat',
+                  onPressed: _handleRepeat,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(chipIcon, size: 12, color: chipFg),
-                    const SizedBox(width: 4),
-                    Text(
-                      statusText,
-                      style: GoogleFonts.plusJakartaSans(
-                        color: chipFg,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 8),
+                if (isWide)
+                  DsButton(
+                    label: 'Copy',
+                    icon: Icons.copy_rounded,
+                    variant: DsButtonVariant.secondary,
+                    size: DsButtonSize.sm,
+                    onPressed: _copyUsage,
+                  )
+                else
+                  DsIconButton(
+                    icon: Icons.copy_rounded,
+                    variant: DsIconVariant.outline,
+                    size: 30,
+                    radius: r7,
+                    iconSize: 15,
+                    tooltip: 'Copy usage',
+                    onPressed: _copyUsage,
+                  ),
+                const SizedBox(width: 8),
+                DsButton(
+                  label: playing ? 'Pause' : 'Play',
+                  icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  variant: DsButtonVariant.primary,
+                  size: DsButtonSize.sm,
+                  onPressed: _handlePlayPause,
                 ),
-              ),
+              ],
             );
           },
         );
@@ -880,45 +711,204 @@ class _HomeWidgetState extends State<HomeWidget> {
     );
   }
 
-  // ── Play controls pill ───────────────────────────────────────────────────
+  (DsStatusKind, String) _statusOf(AnimatedTextController? c) {
+    if (c == null) return (DsStatusKind.stopped, 'Stopped');
+    if (c.isAnimating) {
+      return (
+        DsStatusKind.playing,
+        c.repeatCount > 0 ? 'Repeat ${c.repeatCount}' : 'Playing'
+      );
+    }
+    if (c.isPaused) return (DsStatusKind.paused, 'Paused');
+    if (c.isCompleted) return (DsStatusKind.completed, 'Completed');
+    return (DsStatusKind.stopped, 'Stopped');
+  }
 
-  Widget _buildPlayControls(ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      decoration: BoxDecoration(
-        color: surfaceColor(colorScheme.brightness),
-        borderRadius: BorderRadius.circular(100),
-        boxShadow: kControlPillShadows,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+  // ── Preview tab ────────────────────────────────────────────────────────
+  Widget _previewTab() {
+    final meta = kEffectMeta[_currentDemo.title];
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ControlButton(
-            icon: Icons.refresh_rounded,
-            tooltip: 'Repeat',
-            onPressed: _handleRepeat,
-            colorScheme: colorScheme,
+          _controlsRow(),
+          const SizedBox(height: 16),
+          if (meta != null) ...[
+            Row(
+              children: [
+                _squareLabel(meta.tag),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(meta.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: dsCaption()),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+          ],
+          Expanded(child: _canvas()),
+        ],
+      ),
+    );
+  }
+
+  Widget _controlsRow() {
+    final demo = _currentDemo;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        DsSegmented(
+          items: const [
+            DsSegmentItem(label: 'Letters', tooltip: 'Animate letters'),
+            DsSegmentItem(label: 'Words', tooltip: 'Animate words'),
+          ],
+          selectedIndex: _isWordMode ? 1 : 0,
+          onChanged: (i) => setState(() => _isWordMode = i == 1),
+        ),
+        DsSegmented(
+          items: const [
+            DsSegmentItem(label: 'Slow', tooltip: 'Slow'),
+            DsSegmentItem(label: 'Medium', tooltip: 'Medium'),
+            DsSegmentItem(label: 'Fast', tooltip: 'Fast'),
+          ],
+          selectedIndex: _speedIndex,
+          onChanged: (i) => setState(() => _speedIndex = i),
+        ),
+        DsSegmented(
+          items: const [
+            DsSegmentItem(icon: Icons.format_align_left, tooltip: 'Start'),
+            DsSegmentItem(icon: Icons.format_align_center, tooltip: 'Center'),
+            DsSegmentItem(icon: Icons.format_align_right, tooltip: 'End'),
+          ],
+          selectedIndex: _alignIndex,
+          onChanged: (i) => setState(() => _textAlign = _alignFromIndex(i)),
+        ),
+        if (demo.hasVariations)
+          DsSegmented(
+            items: [
+              for (final v in demo.variations)
+                DsSegmentItem(icon: v.icon, label: v.label, tooltip: v.label),
+            ],
+            selectedIndex: _variationIndices[_currentPage],
+            onChanged: (i) =>
+                setState(() => _variationIndices[_currentPage] = i),
           ),
-          const SizedBox(width: 4),
-          ValueListenableBuilder<AnimatedTextController?>(
-            valueListenable: _controllerNotifier,
-            builder: (context, controller, _) {
-              return ListenableBuilder(
-                listenable: controller ?? ChangeNotifier(),
-                builder: (context, _) {
-                  final isPlaying = controller?.isAnimating ?? false;
-                  return ControlButton(
-                    icon: isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    tooltip: isPlaying ? 'Pause' : 'Play',
-                    onPressed: _handlePlayPause,
-                    colorScheme: colorScheme,
-                    isPrimary: true,
-                  );
-                },
-              );
-            },
+        if (demo.title == 'Gravity')
+          DsSegmented(
+            items: const [
+              DsSegmentItem(label: 'Interact', tooltip: 'Tap / drag letters'),
+              DsSegmentItem(label: 'Static', tooltip: 'Disable interaction'),
+            ],
+            selectedIndex: _interactionEnabled ? 0 : 1,
+            onChanged: (i) => setState(() => _interactionEnabled = i == 0),
+          ),
+      ],
+    );
+  }
+
+  int get _alignIndex => switch (_textAlign) {
+        TextAlign.center => 1,
+        TextAlign.end => 2,
+        _ => 0,
+      };
+
+  TextAlign _alignFromIndex(int i) => switch (i) {
+        1 => TextAlign.center,
+        2 => TextAlign.end,
+        _ => TextAlign.start,
+      };
+
+  Widget _squareLabel(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: dsFill,
+        borderRadius: BorderRadius.circular(r6),
+      ),
+      child: Text(text, style: dsSmall(color: dsInk)),
+    );
+  }
+
+  Widget _canvas() {
+    final demo = _currentDemo;
+    final vi = _variationIndices[_currentPage];
+
+    void onControllerCreated(AnimatedTextController c) {
+      if (_currentController != c) {
+        _currentController = c;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _controllerNotifier.value = c;
+        });
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: dsSurface,
+        border: Border.all(color: dsBorder),
+        borderRadius: BorderRadius.circular(r10),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(40),
+          child: KeyedSubtree(
+            key: ValueKey(
+                '${demo.title}_${_isWordMode}_${vi}_$_textAlign _$_speedIndex'),
+            child: _isWordMode
+                ? demo.buildWord(
+                    onControllerCreated, vi, _textAlign, _wordDuration)
+                : demo.buildLetter(
+                    onControllerCreated, vi, _textAlign, _letterDuration),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Code tab ───────────────────────────────────────────────────────────
+  Widget _codeTab() {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Usage', style: dsHeading()),
+              const Spacer(),
+              DsButton(
+                label: 'Copy',
+                icon: Icons.copy_rounded,
+                variant: DsButtonVariant.secondary,
+                size: DsButtonSize.sm,
+                onPressed: _copyUsage,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: dsSubtle,
+                border: Border.all(color: dsBorder),
+                borderRadius: BorderRadius.circular(r10),
+              ),
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  _usageSnippet(_currentDemo),
+                  style: dsMono(size: 12.5, color: dsText2),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -926,115 +916,55 @@ class _HomeWidgetState extends State<HomeWidget> {
   }
 }
 
-// Copies a ready-to-paste usage snippet for the current effect. Briefly shows
-// a success check after copying, then animates back to the copy icon.
-class _CopyUsageButton extends StatefulWidget {
-  final ColorScheme colorScheme;
-  final Future<void> Function() onCopy;
-
-  const _CopyUsageButton({required this.colorScheme, required this.onCopy});
-
-  @override
-  State<_CopyUsageButton> createState() => _CopyUsageButtonState();
-}
-
-class _CopyUsageButtonState extends State<_CopyUsageButton> {
-  bool _copied = false;
-  Timer? _resetTimer;
-
-  Future<void> _handleTap() async {
-    await widget.onCopy();
-    if (!mounted) return;
-    setState(() => _copied = true);
-    _resetTimer?.cancel();
-    _resetTimer = Timer(const Duration(seconds: 1), () {
-      if (mounted) setState(() => _copied = false);
-    });
-  }
-
-  @override
-  void dispose() {
-    _resetTimer?.cancel();
-    super.dispose();
-  }
+/// A 1px horizontal dashed line in the border color.
+class _DashedLine extends StatelessWidget {
+  const _DashedLine();
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = widget.colorScheme;
-    return Tooltip(
-      message: 'Copy example usage',
-      child: InkWell(
-        onTap: _handleTap,
-        borderRadius: BorderRadius.circular(100),
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-            ),
-          ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            transitionBuilder: (child, animation) => ScaleTransition(
-              scale: animation,
-              child: FadeTransition(opacity: animation, child: child),
-            ),
-            child: Icon(
-              _copied ? Icons.check_rounded : Icons.copy_rounded,
-              key: ValueKey(_copied),
-              size: _copied ? 20 : 18,
-              color: _copied ? kStatusPlaying : colorScheme.primary,
-            ),
-          ),
-        ),
-      ),
+    return SizedBox(
+      height: 2,
+      child: CustomPaint(painter: _DashedLinePainter()),
     );
   }
 }
 
-// Light/dark theme toggle shown at the far right of the card header.
-class _ThemeToggle extends StatelessWidget {
-  final ColorScheme colorScheme;
-  final VoidCallback onToggle;
+class _DashedLinePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    const dash = 4.0, gap = 3.0;
+    final paint = Paint()
+      ..color = dsBorderHover
+      ..strokeWidth = 1.4;
+    final y = size.height / 2;
+    for (double x = 0; x < size.width; x += dash + gap) {
+      canvas.drawLine(Offset(x, y), Offset(x + dash, y), paint);
+    }
+  }
 
-  const _ThemeToggle({required this.colorScheme, required this.onToggle});
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Tiny helper to track hover state for a builder without a bespoke widget.
+class _HoverBox extends StatefulWidget {
+  final Widget Function(bool hovered) builder;
+  const _HoverBox({required this.builder});
+
+  @override
+  State<_HoverBox> createState() => _HoverBoxState();
+}
+
+class _HoverBoxState extends State<_HoverBox> {
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = colorScheme.brightness == Brightness.dark;
-    return Tooltip(
-      message: isDark ? 'Switch to light mode' : 'Switch to dark mode',
-      child: InkWell(
-        onTap: onToggle,
-        borderRadius: BorderRadius.circular(100),
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-            ),
-          ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            transitionBuilder: (child, animation) => RotationTransition(
-              turns: Tween<double>(begin: 0.6, end: 1.0).animate(animation),
-              child: FadeTransition(opacity: animation, child: child),
-            ),
-            child: Icon(
-              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              key: ValueKey(isDark),
-              size: 20,
-              color: colorScheme.primary,
-            ),
-          ),
-        ),
-      ),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: widget.builder(_hovered),
     );
   }
 }
