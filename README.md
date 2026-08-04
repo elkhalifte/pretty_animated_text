@@ -35,6 +35,7 @@ Physics-based animations are utilized for text animations, providing a smooth an
   - Offset (slide) animation
   - Scramble animation *(new in v3)*
   - Glitch animation with RGB-split chromatic shadows *(new in v3.2)*
+  - Squash bounce animation with an elastic traveling wave *(new in v3.2)*
   - Reveal animation with sliding cursor *(new in v3)*
   - Gravity animation with real 2D rigid-body physics (collisions, piling, tap & drag) via forge2d *(new in v3)*
 - Supports both letter-by-letter and word-by-word animations
@@ -198,6 +199,37 @@ Currently, the plugin supports default Flutter text alignments:
   text stays readable while it tears — the caller's `TextStyle` (font, weight) is
   preserved. Use `GlitchStyle(shadows: true)` for a chromatic tinted tear or
   `shadows: false` for a clean monochrome one. Enable `config.repeat` for a
+  continuous loop.
+
+- Squash Bounce Text *(new in v3.2)*
+
+  A SplitText-inspired squash bounce. Each glyph drops, squashes, and rotates,
+  then elastically settles back to rest — animating as a continuous traveling
+  wave across the text.
+
+  ```dart
+    SquashBounceText(
+      text: 'Lorem ipsum dolor sit amet ...',
+      style: const TextStyle(fontSize: 18),
+      config: AnimationConfig(
+        duration: const Duration(milliseconds: 150),
+        type: AnimationType.letter, // or AnimationType.word
+        repeat: true, // loop the bounce continuously
+      ),
+      // Optional: customize the bounce (defaults shown)
+      squashStyle: const SquashBounceStyle(
+        dropFraction: 0.5, // peak drop as a fraction of glyph height
+        squashScaleY: 0.3, // vertical scale at the squash peak
+        rotateDegrees: 17, // peak rotation, pivoting on the glyph's bottom
+        squashPhase: 0.2, // fraction of each glyph's window spent squashing in
+        waveSpread: 0.6, // smaller = tighter wave, larger = more sequential
+      ),
+    )
+  ```
+  Each glyph runs its full drop→squash→elastic-return over a wide window while
+  the start times are packed tightly, so many glyphs are mid-flight at slightly
+  offset phases — reading as one wave traveling across the text. The caller's
+  `TextStyle` (font, weight) is preserved. Enable `config.repeat` for a
   continuous loop.
 
 - Reveal Text *(new in v3)*

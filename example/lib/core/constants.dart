@@ -150,6 +150,7 @@ const kDemoIcons = <String, IconData>{
   'Blur': Icons.blur_on_rounded,
   'Scramble': Icons.shuffle_rounded,
   'Glitch': Icons.bolt_rounded,
+  'Squash Bounce': Icons.compress_rounded,
   'Reveal': Icons.auto_fix_high_rounded,
   'Gravity': Icons.arrow_downward_rounded,
 };

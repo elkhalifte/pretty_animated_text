@@ -193,6 +193,36 @@ class ScrambleTextDemo extends StatelessWidget {
       );
 }
 
+class SquashBounceDemo extends StatelessWidget {
+  final AnimationType type;
+  final Duration duration;
+  final TextAlign textAlign;
+  final void Function(AnimatedTextController)? onControllerCreated;
+
+  const SquashBounceDemo({
+    super.key,
+    this.type = AnimationType.letter,
+    this.duration = letterAnimationDuration,
+    this.textAlign = TextAlign.start,
+    this.onControllerCreated,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Squash bounce reads better fast: shift each speed one notch quicker
+    // (slow→old medium, medium→old fast, fast→a new faster) by halving.
+    final fasterDuration =
+        Duration(microseconds: duration.inMicroseconds ~/ 2);
+    return SquashBounceText(
+      text: demoText,
+      style: demoTextStyleOf(context),
+      textAlign: textAlign,
+      config: _buildConfig(runtimeType, type, fasterDuration, onControllerCreated),
+      onControllerCreated: onControllerCreated,
+    );
+  }
+}
+
 class GlitchTextDemo extends StatelessWidget {
   final AnimationType type;
   final Duration duration;
