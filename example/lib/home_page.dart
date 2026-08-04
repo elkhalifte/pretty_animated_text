@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pretty_animated_text/pretty_animated_text.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
@@ -241,6 +244,114 @@ class _HomeWidgetState extends State<HomeWidget> {
   }
 
   void _handleRepeat() => _currentController?.repeat();
+
+  // Copy a ready-to-paste usage snippet for the current effect, reflecting the
+  // live mode / speed / alignment (and variation, where applicable).
+  Future<void> _copyUsage() async {
+    final demo = _demos[_currentPage];
+    await Clipboard.setData(ClipboardData(text: _usageSnippet(demo)));
+    if (!mounted) return;
+
+    final cs = Theme.of(context).colorScheme;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          // Transparent full-width shell; the visible pill is end-aligned and
+          // sized to its content.
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          padding: EdgeInsets.zero,
+          duration: const Duration(seconds: 2),
+          content: Align(
+            alignment: Alignment.centerRight,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: surfaceColor(cs.brightness),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: cs.outlineVariant.withValues(alpha: 0.4),
+                ),
+                boxShadow: kControlPillShadows,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: kStatusPlaying,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${demo.title} usage copied',
+                    style: TextStyle(
+                      color: cs.onSurface,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+  }
+
+  String _usageSnippet(AnimationDemoItem demo) {
+    final type = _isWordMode ? 'AnimationType.word' : 'AnimationType.letter';
+    final ms = (_isWordMode ? _wordDuration : _letterDuration).inMilliseconds;
+    final align = 'TextAlign.${_textAlign.name}';
+    final vi = _variationIndices[_currentPage];
+
+    // Effect title -> widget class name (+ any constructor-level variation arg).
+    String widgetName;
+    final ctorArgs = <String>[];
+    switch (demo.title) {
+      case 'Squash Bounce':
+        widgetName = 'SquashBounceText';
+        break;
+      case 'Chime Bell':
+        widgetName = 'ChimeBellText';
+        break;
+      case 'Slide':
+        widgetName = 'SlideText';
+        ctorArgs.add('slideType: ${_slideVariations[vi].value}');
+        break;
+      case 'Rotate':
+        widgetName = 'RotateText';
+        ctorArgs.add('direction: ${_rotateVariations[vi].value}');
+        break;
+      default:
+        widgetName = '${demo.title}Text';
+    }
+
+    final b = StringBuffer()
+      ..writeln('$widgetName(')
+      ..writeln("  text: '$demoText',")
+      ..writeln(
+          '  style: const TextStyle(fontSize: 52, fontWeight: FontWeight.w900),')
+      ..writeln('  textAlign: $align,');
+    for (final arg in ctorArgs) {
+      b.writeln('  $arg,');
+    }
+    b
+      ..writeln('  config: AnimationConfig(')
+      ..writeln('    duration: const Duration(milliseconds: $ms),')
+      ..writeln('    type: $type,');
+    // Gravity is a physics sim and ignores repeat/reverse.
+    if (demo.title != 'Gravity') {
+      b.writeln('    repeat: true,');
+    }
+    b
+      ..writeln('  ),')
+      ..write(')');
+    return b.toString();
+  }
 
   void _onModeChanged(bool isWord) {
     if (_isWordMode == isWord) return;
@@ -496,6 +607,11 @@ class _HomeWidgetState extends State<HomeWidget> {
           const SizedBox(width: 10),
           _statusChip(colorScheme),
           const Spacer(),
+          _CopyUsageButton(
+            colorScheme: colorScheme,
+            onCopy: _copyUsage,
+          ),
+          const SizedBox(width: 8),
           _ThemeToggle(
             colorScheme: colorScheme,
             onToggle: widget.onToggleTheme,
@@ -805,6 +921,75 @@ class _HomeWidgetState extends State<HomeWidget> {
             },
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Copies a ready-to-paste usage snippet for the current effect. Briefly shows
+// a success check after copying, then animates back to the copy icon.
+class _CopyUsageButton extends StatefulWidget {
+  final ColorScheme colorScheme;
+  final Future<void> Function() onCopy;
+
+  const _CopyUsageButton({required this.colorScheme, required this.onCopy});
+
+  @override
+  State<_CopyUsageButton> createState() => _CopyUsageButtonState();
+}
+
+class _CopyUsageButtonState extends State<_CopyUsageButton> {
+  bool _copied = false;
+  Timer? _resetTimer;
+
+  Future<void> _handleTap() async {
+    await widget.onCopy();
+    if (!mounted) return;
+    setState(() => _copied = true);
+    _resetTimer?.cancel();
+    _resetTimer = Timer(const Duration(seconds: 1), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _resetTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = widget.colorScheme;
+    return Tooltip(
+      message: 'Copy example usage',
+      child: InkWell(
+        onTap: _handleTap,
+        borderRadius: BorderRadius.circular(100),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+            ),
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            transitionBuilder: (child, animation) => ScaleTransition(
+              scale: animation,
+              child: FadeTransition(opacity: animation, child: child),
+            ),
+            child: Icon(
+              _copied ? Icons.check_rounded : Icons.copy_rounded,
+              key: ValueKey(_copied),
+              size: _copied ? 20 : 18,
+              color: _copied ? kStatusPlaying : colorScheme.primary,
+            ),
+          ),
+        ),
       ),
     );
   }
