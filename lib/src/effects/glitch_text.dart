@@ -213,7 +213,7 @@ class _GlitchTextState extends State<GlitchText> {
     return AnimatedTextBase(
       text: widget.text,
       style: widget.style,
-      autoPlay: autoPlay,
+      autoPlay: widget.autoPlay,
       textAlign: widget.textAlign,
       config: widget.config,
       onControllerCreated: _handleController,
